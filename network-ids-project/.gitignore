@@ -1,0 +1,6 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+models/*.pkl
+data/traffic_logs.jsonl

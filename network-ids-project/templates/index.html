@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network IDS Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand-mark">⛨</div>
+  <div><h1>Network IDS</h1><p>Traffic Monitoring &amp; Intrusion Detection</p></div>
+  <span class="pill">LOCAL DEMO</span>
+</header>
+<main>
+  <section class="intro">
+    <div><h2>Security overview</h2><p>Review packet metadata, anomaly labels, and recent alerts.</p></div>
+    <button onclick="refreshData()">↻ Refresh</button>
+  </section>
+  <section class="metrics">
+    <article class="metric"><span>Total events</span><strong id="total">—</strong><small>Records in local log</small></article>
+    <article class="metric"><span>Normal</span><strong id="normal" class="green">—</strong><small>Classified normal</small></article>
+    <article class="metric"><span>Suspicious</span><strong id="suspicious" class="red">—</strong><small>Review these events</small></article>
+  </section>
+  <section class="demo-panel">
+    <div><h3>Demo event generator</h3><p>Creates synthetic test events only; it does not send network traffic.</p></div>
+    <div class="actions">
+      <button class="secondary" onclick="addEvent('normal')">＋ Add normal demo</button>
+      <button class="danger" onclick="addEvent('suspicious')">＋ Add suspicious demo</button>
+    </div>
+  </section>
+  <section class="grid">
+    <article class="panel">
+      <div class="panel-head"><h3>Recent events</h3><span>Latest 20</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Time</th><th>Source IP</th><th>Destination</th><th>Protocol</th><th>Size</th><th>Status</th></tr></thead><tbody id="events"></tbody></table></div>
+    </article>
+    <article class="panel alerts">
+      <div class="panel-head"><h3>Recent alerts</h3><span>Review</span></div>
+      <div id="alertList"></div>
+    </article>
+  </section>
+  <p class="footnote">Educational project • Metadata only • Use live capture only on networks you are authorized to monitor.</p>
+</main>
+<script>
+function esc(v){return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function refreshData(){
+  const res = await fetch('/api/summary'); const d = await res.json();
+  document.getElementById('total').textContent=d.total;
+  document.getElementById('normal').textContent=d.normal;
+  document.getElementById('suspicious').textContent=d.suspicious;
+  document.getElementById('events').innerHTML=d.recent.map(x=>`<tr><td>${esc((x.timestamp||'').replace('T',' ').slice(0,19))}</td><td>${esc(x.src_ip)}</td><td>${esc(x.dst_ip)}:${esc(x.dst_port)}</td><td>${esc(x.protocol)}</td><td>${esc(x.packet_size)} B</td><td><span class="status ${x.label==='Suspicious'?'bad':'good'}">${esc(x.label)}</span></td></tr>`).join('');
+  document.getElementById('alertList').innerHTML=d.alerts.length ? d.alerts.map(x=>`<div class="alert-item"><span class="alert-icon">!</span><div><strong>${esc(x.src_ip)} → ${esc(x.dst_ip)}</strong><p>${esc(x.protocol)} · destination port ${esc(x.dst_port)}</p><small>${esc(x.timestamp||'').replace('T',' ').slice(0,19)} · score ${esc(x.confidence)}</small></div></div>`).join('') : '<p class="empty">No suspicious demo events recorded.</p>';
+}
+async function addEvent(kind){
+  await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind})});
+  refreshData();
+}
+refreshData();
+setInterval(refreshData, 10000);
+</script>
+</body>
+</html>
